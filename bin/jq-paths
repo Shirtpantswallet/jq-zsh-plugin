@@ -1,10 +1,12 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # path logic inspired by https://github.com/stedolan/jq/issues/243
 JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
+[[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && export JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
+
 # JQ_PATHS_ARGS has to be unquoted so it's passed as cli args to jq so
 # word splitting is desirable here
 # shellcheck disable=SC2086
-$JQ_REPL_JQ ${JQ_PATHS_ARGS:-} -r '
+$JQ_REPL_JQ[@] ${JQ_PATHS_ARGS:-} -r '
 [
   path(..)  |
   map(

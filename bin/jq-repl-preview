@@ -1,6 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 set -euo pipefail
 JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
+[[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && export JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
 
 query=$1
 input_file=$2
@@ -21,7 +22,7 @@ do_query() {
   # JQ_REPL_ARGS has to be unquoted so it's passed as cli args to jq so
   # word splitting is desirable here
   # shellcheck disable=SC2086
-  $JQ_REPL_JQ --color-output ${JQ_REPL_ARGS:-} "$query" "$input_file"
+  $JQ_REPL_JQ[@] --color-output ${JQ_REPL_ARGS:-} "$query" "$input_file"
 } 2> >(red)
 
 echo "Last successful jq expression: $query" | red >"$out"

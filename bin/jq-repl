@@ -1,11 +1,12 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # if 1st arg is '-' read from stdin
 # if 1st arg is '--' take the command after it verbatim and execute it to get the input
 # if 1st arg is anything else, treat it as a file
 set -eu
 
-export JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
+JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
+[[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && export JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
 
 if [ -n "${1:-}" ] && [ "$1" != "-" ] && [ "$1" != "--" ]; then
   input="$1"
