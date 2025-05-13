@@ -43,6 +43,7 @@ FZF_COPY_TO_CLIPBOARD="execute-silent(ignore)"
 command -v xclip > /dev/null && \
   FZF_COPY_TO_CLIPBOARD="execute-silent(echo -n {} | xclip -in -sel clip)+abort"
 
+# TODO: add ability to modify jq args dynamically. This may have ripple effects on the output of `jq-paths`.
 eval "$FZF_JQ_REPL_COMMAND" |
   fzf \
     --preview "jq-repl-preview {q} $input $output" \
