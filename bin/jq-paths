@@ -20,7 +20,7 @@ def format_path($path):
       ".\(.)"
     end
   elif type == "number" then 
-    "[]"
+    "[]?"
   else 
     error 
   end
@@ -30,6 +30,7 @@ def format_path: format_path(.);
 
 [
   path(..)  |
-  reduce .[] as $item (""; . + format_path($item))
+  reduce .[] as $item (""; . + format_path($item)) |
+  ltrimstr("[]?.")
 ] | sort | unique | .[] | $filter + .
 '
