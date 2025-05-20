@@ -10,15 +10,26 @@ filter="${1:-.}"
 # shellcheck disable=SC2086
 $JQ_REPL_JQ[@] ${JQ_PATHS_ARGS:-} "${filter}" |\
 $JQ_REPL_JQ[@] ${JQ_PATHS_ARGS:-} --arg filter "${filter}" --slurp --raw-output '
+def format_path($path):
+  $path |
+  if type == "string" then
+    # use generic object index syntax if key contains non-alphanumeric characters or starts with a digit
+    if test("(^[0-9])|[^a-zA-Z0-9_]") then 
+      "[\"\(.)\"]"
+    else
+      ".\(.)"
+    end
+  elif type == "number" then 
+    "[]"
+  else 
+    error 
+  end
+;
+
+def format_path: format_path(.);
+
 [
   path(..)  |
-  map(
-    # use generic object index syntax if key contains non-alphanumeric characters or starts with a digit
-    select(type == "string" and (test("[^a-zA-Z0-9_]") or test("^[0-9]"))) |= "[\"" + . + "\"]"
-  ) |
-  map(
-    # numbers are assumed to be array indexes only
-    select(type == "number") |= "[]"
-  ) | join(".")
-] | sort | unique | .[] | split(".[") | join("[") | ltrimstr("[]") | select(length > 0) | if $filter != "." then $filter + . end
+  reduce .[] as $item (""; . + format_path($item))
+] | sort | unique | .[] | $filter + .
 '
