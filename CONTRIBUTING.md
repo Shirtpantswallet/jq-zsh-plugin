@@ -21,6 +21,9 @@ To align with the projects vision, most PR-s adding net new functionality will b
 * PR-s for shell-specific logic that's not zsh will be rejected. This project is a zsh plugin.
 * Changes that include 20+ net new lines of code in a single change. See the project vision.
 
+Adding extension hooks and changing code to support extending better can be discussed in the repo-discussions first.
+Please start a discussion before putting a ton of time into a PR that will likely be rejected when it does not align the project's primary vision.
+
 Forking is encouraged in case you want to have that functionality anyway.
 
 ## How a good PR looks like
