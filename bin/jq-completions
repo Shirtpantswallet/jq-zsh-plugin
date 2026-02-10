@@ -15,34 +15,32 @@ jq_paths_cmd="$4"
 JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
 [[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
 
-# Extract the prefix to prepend to completions (everything up to and including last | or .)
-# This ensures tab-completion produces valid full queries
+# Extract the prefix to prepend to completions based on context
+# Only adds prefix when user is at a "completion point" (just typed |, ., or [)
+# When user is mid-word, no prefix is added (fzf filters based on typed text)
 get_completion_prefix() {
   local q="$1"
+  local ctx="$2"
   q="${q%% }"  # trim trailing space
 
-  # Check for trailing pipe (with optional space)
-  if [[ "$q" =~ '|[[:space:]]*$' ]]; then
-    # Return everything including the pipe and a space
-    echo "${q%%|*}| "
-    return
-  fi
-
-  # Check for trailing dot (but not ..)
-  if [[ "${q: -1}" == "." && "${q: -2}" != ".." ]]; then
-    # Return everything including the trailing dot
-    echo "$q"
-    return
-  fi
-
-  # Check for trailing bracket
-  if [[ "${q: -1}" == "[" ]]; then
-    echo "$q"
-    return
-  fi
-
-  # No special suffix - no prefix needed (user is typing from scratch or filtering)
-  echo ""
+  case "$ctx" in
+    "pipe")
+      # Just typed "|" - prefix completions with everything up to and including "| "
+      echo "${q%%|*}| "
+      ;;
+    "dot")
+      # Just typed "." - prefix completions with the full query including the dot
+      echo "$q"
+      ;;
+    "bracket")
+      # Just typed "[" - prefix completions with the full query including the bracket
+      echo "$q"
+      ;;
+    *)
+      # Default/mid-word: no prefix, let fzf filter naturally
+      echo ""
+      ;;
+  esac
 }
 
 # Extract the jq filter prefix (before last |) for evaluating paths on transformed data
@@ -119,7 +117,7 @@ filter_builtins_for_pipe() {
 # Filter builtins for after-dot context (typically path access, not functions)
 filter_builtins_for_dot() {
   ("$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null) | \
-    grep -E '^\[fn\] (keys|values|length|type|keys_unsorted)' 2>/dev/null || true
+    grep -E '^(keys|values|length|type|keys_unsorted)$' 2>/dev/null || true
 }
 
 # Get paths - if there's a jq prefix, evaluate paths on transformed output
@@ -137,7 +135,7 @@ get_paths() {
 }
 
 context=$(get_context "$query")
-completion_prefix=$(get_completion_prefix "$query")
+completion_prefix=$(get_completion_prefix "$query" "$context")
 
 case "$context" in
   "pipe")
@@ -155,8 +153,8 @@ case "$context" in
     get_paths | output_with_prefix "$completion_prefix"
     ;;
   *)
-    # Default: paths first, then all builtins (no prefix needed)
-    get_paths
-    "$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null || true
+    # Default: paths first, then all builtins
+    get_paths | output_with_prefix "$completion_prefix"
+    ("$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null || true) | output_with_prefix "$completion_prefix"
     ;;
 esac

@@ -1,8 +1,9 @@
 #!/usr/bin/env zsh
-# Output jq builtin functions for completion
-# Format: [fn] signature    # description
+# Output jq builtin function names for completion
+# Source format: [fn] signature    # description
+# Output: just the function name (e.g., "map", "select", "keys"), deduplicated
 
-cat << 'EOF'
+sed -n 's/^\[fn\] \([a-zA-Z_]*\).*/\1/p' << 'EOF' | awk '!seen[$0]++'
 # === Iteration & Control Flow ===
 [fn] map(f)                     # Apply f to each element
 [fn] map_values(f)              # Apply f to each value (for objects)
