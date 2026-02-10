@@ -22,16 +22,21 @@ build_jq_paths_cmd() {
 if [ -n "${1:-}" ] && [ "$1" != "-" ] && [ "$1" != "--" ]; then
   input="$1"
   output=$(mktemp)
+  error_file="${output}.err"
   reload_script=$(mktemp)
   completions_wrapper=$(mktemp)
-  trap 'rm -f "$output" "$reload_script" "$completions_wrapper"' EXIT
+  trap 'rm -f "$output" "$error_file" "$reload_script" "$completions_wrapper"' EXIT
 else
   input=$(mktemp)
   output=$(mktemp)
+  error_file="${output}.err"
   reload_script=$(mktemp)
   completions_wrapper=$(mktemp)
-  trap 'rm -f "$input" "$output" "$reload_script" "$completions_wrapper"' EXIT
+  trap 'rm -f "$input" "$output" "$error_file" "$reload_script" "$completions_wrapper"' EXIT
 fi
+
+# Initialize error file
+: > "$error_file"
 
 if [ -z "${1:-}" ] || [ "$1" = "-" ]; then
   cat /dev/stdin >"$input"
@@ -81,11 +86,16 @@ FZF_COPY_TO_CLIPBOARD="execute-silent(ignore)"
 command -v xclip > /dev/null && \
   FZF_COPY_TO_CLIPBOARD="execute-silent(echo -n {} | xclip -in -sel clip)+abort"
 
+# Script to get error label (empty if no error, error message if present)
+get_error_label="if [[ -s ${(q)error_file} ]]; then printf '❌ %s' \"\$(cat ${(q)error_file})\"; fi"
+
 # TODO: add ability to modify jq args dynamically. This may have ripple effects on the output of `jq-paths`.
 "$reload_script" |
   fzf \
     --preview "jq-repl-preview {q} ${(q)input} ${(q)output}" \
-    --preview-window="down:90%" \
+    --preview-window="down:90%:border-top" \
+    --preview-label="" \
+    --preview-label-pos="bottom" \
     --height="99%" \
     --query="." \
     --bind "tab:replace-query+first,return:print-query" \
@@ -95,4 +105,4 @@ command -v xclip > /dev/null && \
     --bind "alt-up:preview-page-up,alt-down:preview-page-down" \
     --bind "ctrl-y:$FZF_COPY_TO_CLIPBOARD" \
     --bind "ctrl-r:reload($reload_script)+refresh-preview" \
-    --bind "change:reload($completions_wrapper {q})+refresh-preview"
+    --bind "change:reload($completions_wrapper {q})+refresh-preview+transform-preview-label($get_error_label)"

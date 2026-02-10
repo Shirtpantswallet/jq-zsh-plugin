@@ -1,32 +1,23 @@
 #!/usr/bin/env zsh
-set -eu
 JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
 [[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && export JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
 
 query=$1
 input_file=$2
 last_success_file=$3
+error_file="${last_success_file}.err"
 
-# for colorizing text
-red() { printf "\033[31m%s\033[0m\n" "$@"; }
-dim() { printf "\033[2m%s\033[0m\n" "$@"; }
-
-# Run jq query, capture output and exit status
+# Run jq query, capture stdout and stderr separately
 # JQ_REPL_ARGS has to be unquoted so it's passed as cli args to jq
 # shellcheck disable=SC2086
-output=$($JQ_REPL_JQ[@] --color-output ${JQ_REPL_ARGS:-} "$query" "$input_file" 2>&1)
-status=$?
-
-if [[ $status -eq 0 ]]; then
-  # Success: display output and cache it
+if output=$($JQ_REPL_JQ[@] --color-output ${JQ_REPL_ARGS:-} "$query" "$input_file" 2>"$error_file"); then
+  # Success: display output and cache it, clear error
   echo "$output"
   echo "$output" > "$last_success_file"
+  : > "$error_file"
 else
-  # Failure: show error in red, then show last successful output dimmed
-  red "Error: $output"
-  echo
+  # Failure: show last successful output (current is displayed in header via error_file)
   if [[ -f "$last_success_file" && -s "$last_success_file" ]]; then
-    dim "Last successful output:"
     cat "$last_success_file"
   fi
 fi

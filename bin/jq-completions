@@ -15,16 +15,44 @@ jq_paths_cmd="$4"
 JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
 [[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
 
-# Extract the prefix before the last pipe (if any) for path evaluation
-# Returns empty string if no pipe or query is just starting after pipe
-get_pipe_prefix() {
+# Extract the prefix to prepend to completions (everything up to and including last | or .)
+# This ensures tab-completion produces valid full queries
+get_completion_prefix() {
   local q="$1"
+  q="${q%% }"  # trim trailing space
 
-  # Find last pipe not inside brackets or parens (simple heuristic)
-  # We'll use a simple approach: find last ' | ' or trailing '|'
+  # Check for trailing pipe (with optional space)
+  if [[ "$q" =~ '|[[:space:]]*$' ]]; then
+    # Return everything including the pipe and a space
+    echo "${q%%|*}| "
+    return
+  fi
+
+  # Check for trailing dot (but not ..)
+  if [[ "${q: -1}" == "." && "${q: -2}" != ".." ]]; then
+    # Return everything including the trailing dot
+    echo "$q"
+    return
+  fi
+
+  # Check for trailing bracket
+  if [[ "${q: -1}" == "[" ]]; then
+    echo "$q"
+    return
+  fi
+
+  # No special suffix - no prefix needed (user is typing from scratch or filtering)
+  echo ""
+}
+
+# Extract the jq filter prefix (before last |) for evaluating paths on transformed data
+get_jq_prefix() {
+  local q="$1"
   if [[ "$q" == *"|"* ]]; then
-    # Get everything before the last pipe
-    echo "${q%|*}"
+    # Get everything before the last pipe, trimmed
+    local prefix="${q%|*}"
+    prefix="${prefix%% }"
+    echo "$prefix"
   fi
 }
 
@@ -71,55 +99,63 @@ get_context() {
   esac
 }
 
-# Filter builtins to show only 0-arity functions (no arguments needed)
-# These are appropriate after a pipe
+# Output completions with prefix prepended
+output_with_prefix() {
+  local prefix="$1"
+  if [[ -n "$prefix" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && echo "${prefix}${line}"
+    done
+  else
+    cat
+  fi
+}
+
+# Filter builtins for after-pipe context
 filter_builtins_for_pipe() {
-  # Show all builtins - user can filter with fzf
-  # Execute the builtins script to get the list
   "$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null || true
 }
 
 # Filter builtins for after-dot context (typically path access, not functions)
 filter_builtins_for_dot() {
-  # After a dot, we mainly want paths, but some builtins make sense
-  # Show fewer builtins here - just the path-related ones
   ("$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null) | \
     grep -E '^\[fn\] (keys|values|length|type|keys_unsorted)' 2>/dev/null || true
 }
 
-# Get paths - if there's a pipe prefix, evaluate paths on transformed output
+# Get paths - if there's a jq prefix, evaluate paths on transformed output
 get_paths() {
-  local prefix=$(get_pipe_prefix "$query")
+  local jq_prefix=$(get_jq_prefix "$query")
 
-  if [[ -n "$prefix" ]]; then
-    # Transform input through the prefix, then extract paths
+  if [[ -n "$jq_prefix" ]]; then
+    # Transform input through the jq prefix, then extract paths
     # shellcheck disable=SC2086
-    $JQ_REPL_JQ[@] ${JQ_REPL_ARGS:-} "$prefix" "$input_file" 2>/dev/null | jq-paths 2>/dev/null || true
+    $JQ_REPL_JQ[@] ${JQ_REPL_ARGS:-} "$jq_prefix" "$input_file" 2>/dev/null | jq-paths 2>/dev/null || true
   else
-    # No prefix - use original jq_paths_cmd (potentially cached)
+    # No jq prefix - use original jq_paths_cmd (potentially cached)
     eval "$jq_paths_cmd" 2>/dev/null || true
   fi
 }
 
 context=$(get_context "$query")
+completion_prefix=$(get_completion_prefix "$query")
 
 case "$context" in
   "pipe")
     # After pipe: builtins first (most likely want a function), then paths
-    filter_builtins_for_pipe
-    get_paths
+    filter_builtins_for_pipe | output_with_prefix "$completion_prefix"
+    get_paths | output_with_prefix "$completion_prefix"
     ;;
   "dot")
     # After dot: paths first (accessing a field), minimal builtins
-    get_paths
-    filter_builtins_for_dot
+    get_paths | output_with_prefix "$completion_prefix"
+    filter_builtins_for_dot | output_with_prefix "$completion_prefix"
     ;;
   "bracket")
     # Inside brackets: paths are useful for nested access
-    get_paths
+    get_paths | output_with_prefix "$completion_prefix"
     ;;
   *)
-    # Default: paths first, then all builtins
+    # Default: paths first, then all builtins (no prefix needed)
     get_paths
     "$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null || true
     ;;
