@@ -22,31 +22,57 @@ build_jq_paths_cmd() {
 if [ -n "${1:-}" ] && [ "$1" != "-" ] && [ "$1" != "--" ]; then
   input="$1"
   output=$(mktemp)
-  trap 'rm -f "$output"' EXIT
+  reload_script=$(mktemp)
+  completions_wrapper=$(mktemp)
+  trap 'rm -f "$output" "$reload_script" "$completions_wrapper"' EXIT
 else
   input=$(mktemp)
   output=$(mktemp)
-  trap 'rm -f "$input" "$output"' EXIT
+  reload_script=$(mktemp)
+  completions_wrapper=$(mktemp)
+  trap 'rm -f "$input" "$output" "$reload_script" "$completions_wrapper"' EXIT
 fi
 
 if [ -z "${1:-}" ] || [ "$1" = "-" ]; then
   cat /dev/stdin >"$input"
 fi
-# Path to builtins file (same directory as this script)
-builtins_file="${0:A:h}/jq-builtins"
+# Path to scripts (same directory as this script)
+script_dir="${0:A:h}"
+builtins_file="$script_dir/jq-builtins"
+completions_script="$script_dir/jq-completions"
 
 # Build the jq-paths command (with or without bkt caching)
 jq_paths_cmd=$(build_jq_paths_cmd "$input")
 
+# Command to reload input data (for --mode)
 if [ "${1:-}" = "--" ]; then
   shift
-  export FZF_JQ_REPL_COMMAND="$* > $input; $jq_paths_cmd; $builtins_file 2>/dev/null"
+  export FZF_JQ_RELOAD_INPUT="$* > $input"
 else
-  export FZF_JQ_REPL_COMMAND="$jq_paths_cmd; $builtins_file 2>/dev/null"
+  export FZF_JQ_RELOAD_INPUT=""
 fi
 
-# Use ASCII Unit Separator as FZF notation delimiter - extremely unlikely in any command
-fzf_notation=$'\x1f'
+# Build reload script (re-runs input command if any, then paths + builtins)
+{
+  echo "#!/usr/bin/env zsh"
+  [[ -n "$FZF_JQ_RELOAD_INPUT" ]] && echo "$FZF_JQ_RELOAD_INPUT"
+  echo "$jq_paths_cmd"
+  echo "\"$builtins_file\" 2>/dev/null"
+} > "$reload_script"
+chmod +x "$reload_script"
+
+# Build completions wrapper script (takes query as $1)
+# Falls back to simple mode if jq-completions doesn't exist
+{
+  echo "#!/usr/bin/env zsh"
+  if [[ -x "$completions_script" ]]; then
+    echo "\"$completions_script\" \"\$1\" \"$input\" \"$builtins_file\" '$jq_paths_cmd'"
+  else
+    echo "$jq_paths_cmd"
+    echo "\"$builtins_file\" 2>/dev/null"
+  fi
+} > "$completions_wrapper"
+chmod +x "$completions_wrapper"
 
 # default ignore
 FZF_COPY_TO_CLIPBOARD="execute-silent(ignore)"
@@ -56,7 +82,7 @@ command -v xclip > /dev/null && \
   FZF_COPY_TO_CLIPBOARD="execute-silent(echo -n {} | xclip -in -sel clip)+abort"
 
 # TODO: add ability to modify jq args dynamically. This may have ripple effects on the output of `jq-paths`.
-eval "$FZF_JQ_REPL_COMMAND" |
+"$reload_script" |
   fzf \
     --preview "jq-repl-preview {q} ${(q)input} ${(q)output}" \
     --preview-window="down:90%" \
@@ -68,4 +94,5 @@ eval "$FZF_JQ_REPL_COMMAND" |
     --bind "shift-up:preview-up,shift-down:preview-down" \
     --bind "alt-up:preview-page-up,alt-down:preview-page-down" \
     --bind "ctrl-y:$FZF_COPY_TO_CLIPBOARD" \
-    --bind "ctrl-r:reload${fzf_notation}${FZF_JQ_REPL_COMMAND}${fzf_notation}+refresh-preview"
+    --bind "ctrl-r:reload($reload_script)+refresh-preview" \
+    --bind "change:reload($completions_wrapper {q})+refresh-preview"

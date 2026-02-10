@@ -1,0 +1,101 @@
+#!/usr/bin/env zsh
+#
+# Context-aware completion generator for jq expressions
+# Analyzes the current query and returns appropriate completions
+#
+# Usage: jq-completions <query> <input_file> <builtins_file> <jq_paths_cmd>
+#
+set -eu
+
+query="${1:-.}"
+input_file="$2"
+builtins_file="$3"
+jq_paths_cmd="$4"
+
+# Determine context from the query
+# Returns: "pipe" | "dot" | "bracket" | "default"
+get_context() {
+  local q="$1"
+
+  # Remove trailing whitespace
+  q="${q%% }"
+  q="${q%%	}"
+
+  # Empty or just "." -> default (paths first)
+  if [[ -z "$q" || "$q" == "." ]]; then
+    echo "default"
+    return
+  fi
+
+  # Get last non-space character
+  local last_char="${q: -1}"
+
+  case "$last_char" in
+    "|")
+      echo "pipe"
+      ;;
+    ".")
+      # Check if it's ".." (recursive descent) or just "."
+      if [[ "${q: -2}" == ".." ]]; then
+        echo "default"
+      else
+        echo "dot"
+      fi
+      ;;
+    "[")
+      echo "bracket"
+      ;;
+    "(")
+      # Inside function call - show paths as arguments
+      echo "dot"
+      ;;
+    *)
+      echo "default"
+      ;;
+  esac
+}
+
+# Filter builtins to show only 0-arity functions (no arguments needed)
+# These are appropriate after a pipe
+filter_builtins_for_pipe() {
+  # Show all builtins - user can filter with fzf
+  # Execute the builtins script to get the list
+  "$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null || true
+}
+
+# Filter builtins for after-dot context (typically path access, not functions)
+filter_builtins_for_dot() {
+  # After a dot, we mainly want paths, but some builtins make sense
+  # Show fewer builtins here - just the path-related ones
+  ("$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null) | \
+    grep -E '^\[fn\] (keys|values|length|type|keys_unsorted)' 2>/dev/null || true
+}
+
+# Get paths from jq-paths
+get_paths() {
+  eval "$jq_paths_cmd" 2>/dev/null || true
+}
+
+context=$(get_context "$query")
+
+case "$context" in
+  "pipe")
+    # After pipe: builtins first (most likely want a function), then paths
+    filter_builtins_for_pipe
+    get_paths
+    ;;
+  "dot")
+    # After dot: paths first (accessing a field), minimal builtins
+    get_paths
+    filter_builtins_for_dot
+    ;;
+  "bracket")
+    # Inside brackets: paths are useful for nested access
+    get_paths
+    ;;
+  *)
+    # Default: paths first, then all builtins
+    get_paths
+    "$builtins_file" 2>/dev/null || cat "$builtins_file" 2>/dev/null || true
+    ;;
+esac

@@ -179,7 +179,6 @@ JQ_ZSH_PLUGIN_EXPAND_ALIASES=0
 
 Ideas for future enhancements (PRs welcome!):
 
-- **Context-aware completions**: Different suggestions after `|` vs after `.`
 - **Depth limiting**: `JQ_PATHS_MAX_DEPTH` env var to limit path extraction depth
 - **gojq builtin validation**: Auto-detect and adjust available builtins for gojq
 - **Streaming JSONL support**: Process large NDJSON files line-by-line without `--slurp`
