@@ -1,0 +1,268 @@
+#!/usr/bin/env zsh
+# Output jq builtin functions for completion
+# Format: [fn] signature    # description
+
+cat << 'EOF'
+# === Iteration & Control Flow ===
+[fn] map(f)                     # Apply f to each element
+[fn] map_values(f)              # Apply f to each value (for objects)
+[fn] select(cond)               # Keep elements where cond is true
+[fn] empty                      # Produce no output
+[fn] error                      # Raise an error
+[fn] error(msg)                 # Raise error with message
+[fn] if-then-else               # Conditional: if COND then A else B end
+[fn] try-catch                  # try EXPR catch HANDLER
+[fn] reduce .[] as $x (init; f) # Fold/reduce over elements
+[fn] foreach .[] as $x (i; u)   # Stateful iteration
+[fn] foreach .[] as $x (i;u;e)  # Stateful iteration with extract
+[fn] while(cond; update)        # Loop while condition true
+[fn] until(cond; update)        # Loop until condition true
+[fn] repeat(f)                  # Repeat f indefinitely
+[fn] range(n)                   # Generate 0 to n-1
+[fn] range(m; n)                # Generate m to n-1
+[fn] range(m; n; step)          # Generate m to n-1 by step
+[fn] recurse                    # Recursively descend .[]?
+[fn] recurse(f)                 # Recursively apply f
+[fn] recurse(f; cond)           # Recurse f while cond
+[fn] recurse_down               # Recurse downward (deprecated)
+[fn] walk(f)                    # Recursively transform tree
+[fn] first                      # Get first element
+[fn] first(expr)                # Get first result of expr
+[fn] last                       # Get last element
+[fn] last(expr)                 # Get last result of expr
+[fn] nth(n)                     # Get nth element (0-indexed)
+[fn] nth(n; expr)               # Get nth result of expr
+[fn] limit(n; expr)             # Take first n results from expr
+[fn] isempty(expr)              # True if expr produces nothing
+
+# === Array Operations ===
+[fn] add                        # Sum array (or concatenate strings)
+[fn] any                        # True if any element is truthy
+[fn] any(cond)                  # True if any element satisfies cond
+[fn] any(gen; cond)             # True if any gen result satisfies cond
+[fn] all                        # True if all elements truthy
+[fn] all(cond)                  # True if all elements satisfy cond
+[fn] all(gen; cond)             # True if all gen results satisfy cond
+[fn] flatten                    # Flatten nested arrays completely
+[fn] flatten(depth)             # Flatten to specified depth
+[fn] reverse                    # Reverse array order
+[fn] sort                       # Sort array elements
+[fn] sort_by(f)                 # Sort by f(element)
+[fn] group_by(f)                # Group elements by f(element)
+[fn] unique                     # Remove duplicates (sorted)
+[fn] unique_by(f)               # Remove duplicates by f(element)
+[fn] min                        # Minimum element
+[fn] min_by(f)                  # Minimum by f(element)
+[fn] max                        # Maximum element
+[fn] max_by(f)                  # Maximum by f(element)
+[fn] indices(val)               # Indices where val appears
+[fn] index(val)                 # First index of val
+[fn] rindex(val)                # Last index of val
+[fn] inside(arr)                # True if contained in arr
+[fn] contains(val)              # True if contains val
+[fn] transpose                  # Transpose array of arrays
+[fn] bsearch(x)                 # Binary search in sorted array
+[fn] combinations               # All combinations of elements
+[fn] combinations(n)            # Combinations of n arrays
+[fn] ascii                      # Get ASCII code of first char
+[fn] implode                    # Convert codepoints to string
+[fn] explode                    # Convert string to codepoints
+
+# === Object Operations ===
+[fn] keys                       # Get object keys (sorted)
+[fn] keys_unsorted              # Get keys in original order
+[fn] values                     # Get object values
+[fn] length                     # Length of string/array/object
+[fn] utf8bytelength             # Length in UTF-8 bytes
+[fn] has(key)                   # True if object has key
+[fn] in(obj)                    # True if key exists in obj
+[fn] del(path)                  # Delete at path
+[fn] to_entries                 # Convert to [{key, value}, ...]
+[fn] from_entries               # Convert [{key, value}, ...] to object
+[fn] with_entries(f)            # Transform entries: to_entries | map(f) | from_entries
+[fn] paths                      # Get all paths
+[fn] paths(filter)              # Get paths matching filter
+[fn] leaf_paths                 # Get paths to leaf values
+[fn] path(expr)                 # Get path to expr result
+[fn] getpath(path)              # Get value at path
+[fn] setpath(path; val)         # Set value at path
+[fn] delpaths(paths)            # Delete multiple paths
+
+# === String Operations ===
+[fn] split(sep)                 # Split string by separator
+[fn] splits(sep)                # Stream of splits
+[fn] join(sep)                  # Join array with separator
+[fn] ascii_downcase             # Convert to lowercase
+[fn] ascii_upcase               # Convert to uppercase
+[fn] ltrimstr(prefix)           # Remove prefix if present
+[fn] rtrimstr(suffix)           # Remove suffix if present
+[fn] startswith(str)            # True if starts with str
+[fn] endswith(str)              # True if ends with str
+[fn] test(regex)                # True if regex matches
+[fn] test(regex; flags)         # Test with flags (i, g, m, x)
+[fn] match(regex)               # Get match object
+[fn] match(regex; flags)        # Match with flags
+[fn] capture(regex)             # Capture named groups
+[fn] capture(regex; flags)      # Capture with flags
+[fn] scan(regex)                # Stream all matches
+[fn] scan(regex; flags)         # Scan with flags
+[fn] sub(regex; repl)           # Replace first match
+[fn] sub(regex; repl; flags)    # Replace with flags
+[fn] gsub(regex; repl)          # Replace all matches
+[fn] gsub(regex; repl; flags)   # Replace all with flags
+
+# === Type Conversions & Checks ===
+[fn] type                       # Get type as string
+[fn] isnull                     # True if null
+[fn] isboolean                  # True if boolean
+[fn] isnumber                   # True if number
+[fn] isstring                   # True if string
+[fn] isarray                    # True if array
+[fn] isobject                   # True if object
+[fn] isinfinite                 # True if infinite number
+[fn] isnan                      # True if NaN
+[fn] isnormal                   # True if normal number
+[fn] infinite                   # Produce infinity
+[fn] nan                        # Produce NaN
+[fn] null                       # Produce null
+[fn] true                       # Produce true
+[fn] false                      # Produce false
+[fn] not                        # Boolean negation
+[fn] and                        # Boolean and (infix)
+[fn] or                         # Boolean or (infix)
+[fn] tonumber                   # Convert to number
+[fn] tostring                   # Convert to string
+[fn] toarray                    # Wrap in array if not already
+[fn] tojsonstream               # Convert to JSON stream
+[fn] fromjsonstream             # Parse JSON stream
+[fn] tojson                     # Encode as JSON string
+[fn] fromjson                   # Parse JSON string
+
+# === Math Functions ===
+[fn] floor                      # Round down
+[fn] ceil                       # Round up
+[fn] round                      # Round to nearest integer
+[fn] trunc                      # Truncate toward zero
+[fn] fabs                       # Absolute value
+[fn] sqrt                       # Square root
+[fn] cbrt                       # Cube root
+[fn] log                        # Natural logarithm
+[fn] log10                      # Base-10 logarithm
+[fn] log2                       # Base-2 logarithm
+[fn] exp                        # e^x
+[fn] exp10                      # 10^x
+[fn] exp2                       # 2^x
+[fn] expm1                      # e^x - 1 (accurate for small x)
+[fn] log1p                      # log(1+x) (accurate for small x)
+[fn] pow(x; y)                  # x^y
+[fn] sin                        # Sine
+[fn] cos                        # Cosine
+[fn] tan                        # Tangent
+[fn] asin                       # Arc sine
+[fn] acos                       # Arc cosine
+[fn] atan                       # Arc tangent
+[fn] atan(x; y)                 # atan2(y, x)
+[fn] sinh                       # Hyperbolic sine
+[fn] cosh                       # Hyperbolic cosine
+[fn] tanh                       # Hyperbolic tangent
+[fn] asinh                      # Inverse hyperbolic sine
+[fn] acosh                      # Inverse hyperbolic cosine
+[fn] atanh                      # Inverse hyperbolic tangent
+[fn] remainder(x; y)            # IEEE remainder
+[fn] fma(x; y; z)               # Fused multiply-add: x*y+z
+[fn] significand                # Significand of float
+[fn] drem(x; y)                 # IEEE remainder (alt)
+[fn] ldexp(x; n)                # x * 2^n
+[fn] scalbn(x; n)               # x * 2^n
+[fn] scalbln(x; n)              # x * 2^n (long)
+[fn] j0                         # Bessel J0
+[fn] j1                         # Bessel J1
+[fn] y0                         # Bessel Y0
+[fn] y1                         # Bessel Y1
+[fn] nearbyint                  # Round to nearest integer
+[fn] logb                       # Extract exponent
+[fn] gamma                      # Gamma function
+[fn] lgamma                     # Log of gamma function
+[fn] tgamma                     # True gamma function
+
+# === Date/Time Functions ===
+[fn] now                        # Current Unix timestamp
+[fn] strftime(fmt)              # Format timestamp
+[fn] strptime(fmt)              # Parse timestamp string
+[fn] gmtime                     # Convert to UTC time object
+[fn] mktime                     # Convert time object to timestamp
+[fn] dateadd(amt)               # Add to date
+[fn] datesub(amt)               # Subtract from date
+[fn] todateiso8601              # Format as ISO 8601
+[fn] fromdateiso8601            # Parse ISO 8601
+
+# === Format Strings ===
+[fn] @text                      # Same as tostring
+[fn] @json                      # Encode as JSON
+[fn] @html                      # HTML escape
+[fn] @uri                       # URI percent-encode
+[fn] @csv                       # Format as CSV row
+[fn] @tsv                       # Format as TSV row
+[fn] @base64                    # Base64 encode
+[fn] @base64d                   # Base64 decode
+[fn] @sh                        # Shell quote
+
+# === SQL-style Operations ===
+[fn] INDEX(expr)                # Create index from stream
+[fn] INDEX(s; expr)             # Index with custom key
+[fn] IN(expr)                   # True if value in expr results
+[fn] IN(s; expr)                # True if in s evaluated with expr
+[fn] GROUP_BY(expr)             # SQL-style group by
+
+# === I/O & Debug ===
+[fn] input                      # Read next input
+[fn] inputs                     # Stream all remaining inputs
+[fn] debug                      # Print debug info to stderr
+[fn] debug(msg)                 # Debug with message
+[fn] stderr                     # Write to stderr
+
+# === Misc ===
+[fn] env                        # Get all env vars as object
+[fn] $ENV                       # Access env vars: $ENV.VAR
+[fn] getenv(name)               # Get single env var
+[fn] builtins                   # List all builtin functions
+[fn] halt                       # Exit immediately
+[fn] halt_error                 # Exit with error
+[fn] halt_error(code)           # Exit with error code
+[fn] localtime                  # Convert to local time
+[fn] input_filename             # Current input filename
+[fn] input_line_number          # Current line number
+[fn] modulemeta(name)           # Get module metadata
+[fn] $__loc__                   # Current location in source
+
+# === Operators (for reference) ===
+[op] .foo                       # Object field access
+[op] .foo?                      # Optional field access
+[op] .[]                        # Iterate all elements
+[op] .[]?                       # Optional iterate
+[op] .[n]                       # Array/string index
+[op] .[n:m]                     # Slice [n, m)
+[op] ..                         # Recursive descent
+[op] |                          # Pipe output to next filter
+[op] ,                          # Output multiple results
+[op] //                         # Alternative (if null/false)
+[op] ?//                        # Destructuring alternative
+[op] =                          # Update assignment
+[op] |=                         # Update with filter
+[op] +=                         # Add and assign
+[op] -=                         # Subtract and assign
+[op] *=                         # Multiply and assign
+[op] /=                         # Divide and assign
+[op] //=                        # Alternative assign
+[op] ==                         # Equality
+[op] !=                         # Inequality
+[op] <                          # Less than
+[op] <=                         # Less or equal
+[op] >                          # Greater than
+[op] >=                         # Greater or equal
+[op] +                          # Add / concatenate
+[op] -                          # Subtract
+[op] *                          # Multiply / repeat string
+[op] /                          # Divide / split string
+[op] %                          # Modulo
+EOF

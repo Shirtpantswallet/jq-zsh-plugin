@@ -10,25 +10,54 @@ filter="${1:-.}"
 # shellcheck disable=SC2086
 $JQ_REPL_JQ[@] ${JQ_PATHS_ARGS:-} "${filter}" |\
 $JQ_REPL_JQ[@] ${JQ_PATHS_ARGS:-} --arg filter "${filter}" --slurp --raw-output '
+# Adaptive sampling: sample max(10, ln(length)) elements from large arrays
+# This dramatically speeds up path extraction for arrays with 1000+ elements
+# while still capturing the variety of paths in heterogeneous data
+def adaptive_sample:
+  if type == "array" and length > 10 then
+    (length | log | floor) as $ln_size |
+    (if $ln_size > 10 then $ln_size else 10 end) as $sample_size |
+    if length <= $sample_size then .
+    else
+      # Sample: first third, strided middle, last third
+      # This captures schema evolution (fields added over time) and periodic variations
+      ($sample_size / 3 | floor | if . < 1 then 1 else . end) as $third |
+      ((length - 1) / ([($sample_size - $third * 2), 1] | max)) as $stride |
+      .[:$third] +
+      [range($third; length - $third; $stride | floor | if . < 1 then 1 else . end) as $i | .[$i]] +
+      .[-$third:]
+    end
+  else
+    .
+  end;
+
+# Apply adaptive sampling recursively to all nested arrays
+def sample_arrays: walk(adaptive_sample);
+
 def format_path($path):
   $path |
   if type == "string" then
-    # use generic object index syntax if key contains non-alphanumeric characters or starts with a digit
-    if test("(^[0-9])|[^a-zA-Z0-9_]") then 
-      "[\"\(.)\"]"
+    # Use generic object index syntax for:
+    # - Empty strings
+    # - Keys starting with a digit
+    # - Keys containing non-alphanumeric characters (except underscore)
+    if . == "" or test("^[0-9]") or test("[^a-zA-Z0-9_]") then
+      # Escape embedded backslashes and quotes for valid jq syntax
+      "[\"" + (gsub("\\\\"; "\\\\\\\\") | gsub("\""; "\\\\\"")) + "\"]"
     else
       ".\(.)"
     end
-  elif type == "number" then 
+  elif type == "number" then
     "[]?"
-  else 
-    error 
+  else
+    error
   end
 ;
 
 def format_path: format_path(.);
 
 [
+  sample_arrays |
   path(..)  |
   reduce .[] as $item (""; . + format_path($item)) |
   ltrimstr("[]?.")

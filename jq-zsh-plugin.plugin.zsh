@@ -19,7 +19,9 @@ jq-complete() {
     if [ -n "$query" ]; then
         LBUFFER="${LBUFFER} | ${JQ_REPL_JQ:-jq}"
         [[ -z "$JQ_REPL_ARGS" ]] || LBUFFER="${LBUFFER} ${JQ_REPL_ARGS}"
-        LBUFFER="${LBUFFER} '$query'"
+        # Escape single quotes in query: ' → '\''
+        local escaped_query="${query//\'/\'\\\'\'}"
+        LBUFFER="${LBUFFER} '${escaped_query}'"
     fi
     zle reset-prompt
     return $ret

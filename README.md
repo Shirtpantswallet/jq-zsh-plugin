@@ -154,3 +154,14 @@ the following line into your `.zshrc`:
 ```sh
 JQ_ZSH_PLUGIN_EXPAND_ALIASES=0
 ```
+
+## Future Improvements / Backlog
+
+Ideas for future enhancements (PRs welcome!):
+
+- **Caching with bkt**: Use [bkt](https://github.com/dimo414/bkt) to cache
+  `jq-paths` output for repeated queries on the same data
+- **Context-aware completions**: Different suggestions after `|` vs after `.`
+- **Depth limiting**: `JQ_PATHS_MAX_DEPTH` env var to limit path extraction depth
+- **gojq builtin validation**: Auto-detect and adjust available builtins for gojq
+- **Streaming JSONL support**: Process large NDJSON files line-by-line without `--slurp`
