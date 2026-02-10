@@ -12,6 +12,22 @@ input_file="$2"
 builtins_file="$3"
 jq_paths_cmd="$4"
 
+JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
+[[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
+
+# Extract the prefix before the last pipe (if any) for path evaluation
+# Returns empty string if no pipe or query is just starting after pipe
+get_pipe_prefix() {
+  local q="$1"
+
+  # Find last pipe not inside brackets or parens (simple heuristic)
+  # We'll use a simple approach: find last ' | ' or trailing '|'
+  if [[ "$q" == *"|"* ]]; then
+    # Get everything before the last pipe
+    echo "${q%|*}"
+  fi
+}
+
 # Determine context from the query
 # Returns: "pipe" | "dot" | "bracket" | "default"
 get_context() {
@@ -71,9 +87,18 @@ filter_builtins_for_dot() {
     grep -E '^\[fn\] (keys|values|length|type|keys_unsorted)' 2>/dev/null || true
 }
 
-# Get paths from jq-paths
+# Get paths - if there's a pipe prefix, evaluate paths on transformed output
 get_paths() {
-  eval "$jq_paths_cmd" 2>/dev/null || true
+  local prefix=$(get_pipe_prefix "$query")
+
+  if [[ -n "$prefix" ]]; then
+    # Transform input through the prefix, then extract paths
+    # shellcheck disable=SC2086
+    $JQ_REPL_JQ[@] ${JQ_REPL_ARGS:-} "$prefix" "$input_file" 2>/dev/null | jq-paths 2>/dev/null || true
+  else
+    # No prefix - use original jq_paths_cmd (potentially cached)
+    eval "$jq_paths_cmd" 2>/dev/null || true
+  fi
 }
 
 context=$(get_context "$query")

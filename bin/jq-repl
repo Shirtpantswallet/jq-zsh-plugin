@@ -88,7 +88,7 @@ command -v xclip > /dev/null && \
     --preview-window="down:90%" \
     --height="99%" \
     --query="." \
-    --bind "tab:replace-query,return:print-query" \
+    --bind "tab:replace-query+first,return:print-query" \
     --bind "ctrl-p:preview-up,ctrl-n:preview-down" \
     --bind "ctrl-alt-p:preview-half-page-up,ctrl-alt-n:preview-half-page-down" \
     --bind "shift-up:preview-up,shift-down:preview-down" \
