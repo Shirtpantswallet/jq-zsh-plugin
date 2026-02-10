@@ -8,6 +8,17 @@ set -eu
 JQ_REPL_JQ="${JQ_REPL_JQ:-jq}"
 [[ $(print -rl -- ${(t)JQ_REPL_JQ}) =~ scalar* ]] && export JQ_REPL_JQ=( ${=JQ_REPL_JQ} )
 
+# Build the jq-paths command with optional bkt caching
+# Uses file modification time for cache invalidation
+build_jq_paths_cmd() {
+  local input_file="$1"
+  if [[ "${JQ_PATHS_CACHE:-1}" == "1" ]] && command -v bkt > /dev/null 2>&1; then
+    echo "bkt --ttl=${JQ_PATHS_CACHE_TTL:-5m} --modtime=\"$input_file\" --discard-failures -- jq-paths < \"$input_file\""
+  else
+    echo "jq-paths < \"$input_file\""
+  fi
+}
+
 if [ -n "${1:-}" ] && [ "$1" != "-" ] && [ "$1" != "--" ]; then
   input="$1"
   output=$(mktemp)
@@ -24,11 +35,14 @@ fi
 # Path to builtins file (same directory as this script)
 builtins_file="${0:A:h}/jq-builtins"
 
+# Build the jq-paths command (with or without bkt caching)
+jq_paths_cmd=$(build_jq_paths_cmd "$input")
+
 if [ "${1:-}" = "--" ]; then
   shift
-  export FZF_JQ_REPL_COMMAND="$* > $input; jq-paths <$input; $builtins_file 2>/dev/null"
+  export FZF_JQ_REPL_COMMAND="$* > $input; $jq_paths_cmd; $builtins_file 2>/dev/null"
 else
-  export FZF_JQ_REPL_COMMAND="jq-paths < \"$input\"; $builtins_file 2>/dev/null"
+  export FZF_JQ_REPL_COMMAND="$jq_paths_cmd; $builtins_file 2>/dev/null"
 fi
 
 # Use ASCII Unit Separator as FZF notation delimiter - extremely unlikely in any command
